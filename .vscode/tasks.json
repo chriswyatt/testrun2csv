@@ -1,0 +1,26 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run testrun_parse",
+            "command": "nim",
+            "args": [
+                "c",
+                "-r",
+                // "-d:release",
+                "-o:bin/testrun_parse",
+                "src/testrun_parse.nim",
+                "/home/chris/projects/locus-casino/test_results/f2c5dbfdb73db1a02b577703dff4e8e2a29d59e1_unittest.xml"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
