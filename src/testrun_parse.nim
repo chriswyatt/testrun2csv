@@ -1,5 +1,6 @@
 import argparse
 import streams
+import strformat
 import tables
 import xmlparser
 import xmltree
@@ -16,12 +17,21 @@ type
     Test = object
         name*: string
         status*: Status
+        locationUrl*: string
 
 type
     Suite = object
         name*: string
         status*: Status
+        locationUrl*: string
         tests*: seq[Test]
+
+type
+    TestRef = tuple
+        suiteName: string
+        suiteLocationUrl: string
+        testName: string
+        testLocationUrl: string
 
 proc getRoot(filePath : string) : XmlNode =
     let stream = newFileStream(filePath, fmRead)
@@ -33,14 +43,21 @@ proc getStatus(statusStr : string) : Status =
 
 proc parseTest(node : XmlNode) : Test =
     let name = node.attr("name")
+
     let statusStr = node.attr("status")
     let status = getStatus(statusStr)
-    result = Test(name: name, status: status)
+
+    let locationUrl = node.attr("locationUrl")
+
+    result = Test(name: name, status: status, locationUrl: locationUrl)
 
 proc parseSuite(node : XmlNode) : Suite =
     let name = node.attr("name")
+
     let statusStr = node.attr("status")
     let status = getStatus(statusStr)
+
+    let locationUrl = node.attr("locationUrl")
 
     var testSeq = newSeq[Test]()
 
@@ -48,7 +65,7 @@ proc parseSuite(node : XmlNode) : Suite =
         if child.tag == "test":
             testSeq.add(parseTest(child))
 
-    result = Suite(name: name, status: status, tests: testSeq)
+    result = Suite(name: name, status: status, locationUrl: locationUrl, tests: testSeq)
 
 proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Suite]) =
     var suiteSeq = newSeq[Suite]()
@@ -90,6 +107,15 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
 
     if actualNumTests != expectedNumTests:
         raise newException(ValueError, "Unexpected total")
+
+    let testRefCounts = newCountTable[TestRef](initialSize = actualNumTests.rightSize)
+    for suite in suiteSeq:
+        for test in suite.tests:
+            testRefCounts.inc((suiteName: suite.name, suiteLocationUrl: suite.locationUrl, testName: test.name, testLocationUrl: test.locationUrl))
+
+    let largestTestRefCount = testRefCounts.largest
+    if largestTestRefCount[1] > 1:
+        raise newException(ValueError, fmt"Duplicate test: {largestTestRefCount[0]}")
 
 proc parse_args() : string =
     let p = newParser("testrun_parse"):
