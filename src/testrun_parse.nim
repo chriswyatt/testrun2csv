@@ -56,7 +56,7 @@ proc parseRoot(root : XmlNode) : seq[Suite] =
         if child.tag == "suite":
             result.add(parseSuite(child))
 
-proc main() =
+proc parse_args() : string =
     let p = newParser("testrun_parse"):
         help("Parse IntelliJ testrun XML files")
         arg(
@@ -68,13 +68,12 @@ proc main() =
 
     try:
         let opts = p.parse()
-        inFilePath = opts.in_file
+        result = opts.in_file
     except UsageError:
         p.run(@["--help"])
-        return
+        quit(QuitFailure)
 
-    let root = getRoot(inFilePath)
-    let suiteSeq = parseRoot(root)
-    echo $suiteSeq
-
-main()
+let inFilePath = parse_args()
+let root = getRoot(inFilePath)
+let suiteSeq = parseRoot(root)
+echo $suiteSeq
