@@ -75,7 +75,11 @@ proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Suite]) =
     return (numTests, statusCounts, suiteSeq)
 
 proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status], suiteSeq : seq[Suite]) =
-    # Check total count matches with number of <test> elements
+    let actualStatusCounts = newCountTable[Status](initialSize = statusTableSize)
+
+    for suite in suiteSeq:
+        for test in suite.tests:
+            actualStatusCounts.inc(test.status)
 
     var actualNumTests : int
     for count in values(actualStatusCounts):
@@ -83,14 +87,6 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
 
     if actualNumTests != expectedNumTests:
         raise newException(ValueError, "Unexpected total")
-
-    # Check status counts match with <test> elements and their statuses
-
-    let actualStatusCounts = newCountTable[Status](initialSize = statusTableSize)
-
-    for suite in suiteSeq:
-        for test in suite.tests:
-            actualStatusCounts.inc(test.status)
 
     if actualStatusCounts != expectedStatusCounts:
         raise newException(ValueError, "Unexpected status counts")
@@ -103,16 +99,20 @@ proc parse_args() : string =
             help = "Input file",
         )
 
-    var inFilePath : string
-
     try:
         let opts = p.parse()
         result = opts.in_file
     except UsageError:
         p.run(@["--help"])
-        quit(QuitFailure)
+        raise
 
-let inFilePath = parse_args()
+var inFilePath : string
+
+try:
+    inFilePath = parse_args()
+except UsageError:
+    quit(QuitFailure)
+
 let root = getRoot(inFilePath)
 let (numTests, statusCounts, suiteSeq) = parseRoot(root)
 validate(numTests, statusCounts, suiteSeq)
