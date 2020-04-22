@@ -1,6 +1,6 @@
 import argparse
-import sequtils
 import streams
+import tables
 import xmlparser
 import xmltree
 
@@ -10,6 +10,7 @@ type
 
 const statusSeq = @[error, failed, ignored, passed]
 const statusStrSeq = @["error", "failed", "ignored", "passed"]
+const statusTableSize = statusSeq.len.rightSize
 
 type
     Test = object
@@ -49,12 +50,50 @@ proc parseSuite(node : XmlNode) : Suite =
 
     result = Suite(name: name, status: status, tests: testSeq)
 
-proc parseRoot(root : XmlNode) : seq[Suite] =
-    result = newSeq[Suite]()
+proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Suite]) =
+    var suiteSeq = newSeq[Suite]()
+
+    var numTests : int
+    let statusCounts = newCountTable[Status](initialSize = statusTableSize)
 
     for child in root:
         if child.tag == "suite":
-            result.add(parseSuite(child))
+            suiteSeq.add(parseSuite(child))
+        elif child.tag == "count":
+            let countName = child.attr("name")
+            let countValueStr = child.attr("value")
+            if countName == "total":
+                numTests = parseInt(countValueStr)
+            else:
+                let status = getStatus(countName)
+
+                if statusCounts.hasKey(status):
+                    raise newException(ValueError, "Duplicate 'count' elements")
+
+                statusCounts[status] = parseInt(countValueStr)
+
+    return (numTests, statusCounts, suiteSeq)
+
+proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status], suiteSeq : seq[Suite]) =
+    # Check total count matches with number of <test> elements
+
+    var actualNumTests : int
+    for count in values(actualStatusCounts):
+        actualNumTests += count
+
+    if actualNumTests != expectedNumTests:
+        raise newException(ValueError, "Unexpected total")
+
+    # Check status counts match with <test> elements and their statuses
+
+    let actualStatusCounts = newCountTable[Status](initialSize = statusTableSize)
+
+    for suite in suiteSeq:
+        for test in suite.tests:
+            actualStatusCounts.inc(test.status)
+
+    if actualStatusCounts != expectedStatusCounts:
+        raise newException(ValueError, "Unexpected status counts")
 
 proc parse_args() : string =
     let p = newParser("testrun_parse"):
@@ -75,5 +114,5 @@ proc parse_args() : string =
 
 let inFilePath = parse_args()
 let root = getRoot(inFilePath)
-let suiteSeq = parseRoot(root)
-echo $suiteSeq
+let (numTests, statusCounts, suiteSeq) = parseRoot(root)
+validate(numTests, statusCounts, suiteSeq)
