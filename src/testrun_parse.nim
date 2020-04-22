@@ -81,15 +81,15 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
         for test in suite.tests:
             actualStatusCounts.inc(test.status)
 
+    if actualStatusCounts != expectedStatusCounts:
+        raise newException(ValueError, "Unexpected status counts")
+
     var actualNumTests : int
     for count in values(actualStatusCounts):
         actualNumTests += count
 
     if actualNumTests != expectedNumTests:
         raise newException(ValueError, "Unexpected total")
-
-    if actualStatusCounts != expectedStatusCounts:
-        raise newException(ValueError, "Unexpected status counts")
 
 proc parse_args() : string =
     let p = newParser("testrun_parse"):
