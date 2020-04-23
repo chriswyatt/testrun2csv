@@ -117,7 +117,7 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
     if largestTestRefCount[1] > 1:
         raise newException(ValueError, fmt"Duplicate test: {largestTestRefCount[0]}")
 
-proc parse_args() : string =
+proc parseArgs() : string =
     let p = newParser("testrun_parse"):
         help("Parse IntelliJ testrun XML files")
         arg(
@@ -135,7 +135,7 @@ proc parse_args() : string =
 var inFilePath : string
 
 try:
-    inFilePath = parse_args()
+    inFilePath = parseArgs()
 except UsageError:
     quit(QuitFailure)
 
