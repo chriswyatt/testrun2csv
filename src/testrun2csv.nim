@@ -204,6 +204,9 @@ proc testCmp(x, y: Test): int =
     else:
         return 0
 
+proc getStatusStr(status : Status) : string =
+    result = statusStrSeq[find(statusSeq, status)]
+
 proc writeCsv(testSeq : seq[Test]) =
     echo csvHeaderStr
 
@@ -218,7 +221,7 @@ proc writeCsv(testSeq : seq[Test]) =
         let fullName = fmt"{suitePath}::{test.name}"
 
         row[0] = fullName
-        row[1] = $test.status
+        row[1] = getStatusStr(test.status)
 
         echo join(row, ",")
 
