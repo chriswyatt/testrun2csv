@@ -155,7 +155,6 @@ proc writeOutput(testSeq : seq[Test]) =
         
         echo ""
 
-
 proc parseArgs() : string =
     let p = newParser("testrun_parse"):
         help("Parse IntelliJ testrun XML files")
