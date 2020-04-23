@@ -64,15 +64,15 @@ proc hash(x: Test): Hash =
 
     result = !$h
 
-proc getRoot(filePath : string) : XmlNode =
+proc getRoot(filePath: string): XmlNode =
     let stream = newFileStream(filePath, fmRead)
     result = parseXml(stream)
     stream.close()
 
-proc getStatus(statusStr : string) : Status =
+proc getStatus(statusStr: string): Status =
     result = statusSeq[find(statusStrSeq, statusStr)]
 
-proc parseTest(node : XmlNode) : (string, Status, string) =
+proc parseTest(node: XmlNode): (string, Status, string) =
     let name = node.attr("name")
 
     let statusStr = node.attr("status")
@@ -82,7 +82,7 @@ proc parseTest(node : XmlNode) : (string, Status, string) =
 
     result = (name, status, locationUrl)
 
-proc parseSuite(node : XmlNode, parents = newSeq[Suite]()) : seq[Test] =
+proc parseSuite(node: XmlNode, parents = newSeq[Suite]()): seq[Test] =
     let suiteName = node.attr("name")
 
     let suiteStatusStr = node.attr("status")
@@ -100,7 +100,10 @@ proc parseSuite(node : XmlNode, parents = newSeq[Suite]()) : seq[Test] =
 
     for child in node:
         if child.tag == "test":
-            let (testName, testStatus, testLocationUrl) = parseTest(child)
+            let (testName,
+                 testStatus,
+                 testLocationUrl) = parseTest(child)
+
             result.add(Test(
                 name: testName,
                 status: testStatus,
@@ -111,11 +114,17 @@ proc parseSuite(node : XmlNode, parents = newSeq[Suite]()) : seq[Test] =
             for test in parseSuite(child, parents=parents & @[suite]):
                 result.add(test)
 
-proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Test]) =
+proc parseRoot(root: XmlNode): (
+        int,
+        CountTableRef[Status],
+        seq[Test],
+) =
     var testSeq = newSeq[Test]()
 
     var numTests: int
-    let statusCounts = newCountTable[Status](initialSize = statusTableSize)
+    let statusCounts = newCountTable[Status](
+        initialSize = statusTableSize,
+    )
 
     for child in root:
         if child.tag == "suite":
@@ -130,13 +139,16 @@ proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Test]) =
                 let status = getStatus(countName)
 
                 if statusCounts.hasKey(status):
-                    raise newException(ValueError, "Duplicate 'count' elements")
+                    raise newException(
+                        ValueError,
+                        "Duplicate 'count' elements",
+                    )
 
                 statusCounts[status] = parseInt(countValueStr)
 
     return (numTests, statusCounts, testSeq)
 
-proc isNameValid(name : string) : bool =
+proc isNameValid(name: string): bool =
     for chk in name:
         let ordChk = ord(chk)
 
@@ -151,8 +163,14 @@ proc isNameValid(name : string) : bool =
     
     return true
 
-proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status], testSeq : seq[Test]) =
-    let actualStatusCounts = newCountTable[Status](initialSize = statusTableSize)
+proc validate(
+        expectedNumTests: int,
+        expectedStatusCounts: CountTableRef[Status],
+        testSeq: seq[Test],
+) =
+    let actualStatusCounts = newCountTable[Status](
+        initialSize = statusTableSize,
+    )
 
     for test in testSeq:
         actualStatusCounts.inc(test.status)
@@ -169,7 +187,9 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
     if actualNumTests != expectedNumTests:
         raise newException(ValueError, "Unexpected total")
 
-    let testHashCounts = newCountTable[Hash](initialSize = actualNumTests.rightSize)
+    let testHashCounts = newCountTable[Hash](
+        initialSize = actualNumTests.rightSize,
+    )
     for test in testSeq:
         testHashCounts.inc(test.hash)
 
@@ -204,10 +224,10 @@ proc testCmp(x, y: Test): int =
     else:
         return 0
 
-proc getStatusStr(status : Status) : string =
+proc getStatusStr(status: Status): string =
     result = statusStrSeq[find(statusSeq, status)]
 
-proc writeCsv(testSeq : seq[Test]) =
+proc writeCsv(testSeq: seq[Test]) =
     echo csvHeaderStr
 
     var row : CsvRow
@@ -225,7 +245,7 @@ proc writeCsv(testSeq : seq[Test]) =
 
         echo join(row, ",")
 
-proc parseArgs() : string =
+proc parseArgs(): string =
     let p = newParser("testrun2csv"):
         help("Convert IntelliJ testrun XML file to a CSV file")
         arg(
