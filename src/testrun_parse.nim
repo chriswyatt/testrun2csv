@@ -14,17 +14,17 @@ const statusStrSeq = @["error", "failed", "ignored", "passed"]
 const statusTableSize = statusSeq.len.rightSize
 
 type
-    Test = object
+    Suite = object
         name*: string
         status*: Status
         locationUrl*: string
 
 type
-    Suite = object
+    Test = object
         name*: string
         status*: Status
         locationUrl*: string
-        tests*: seq[Test]
+        suite*: Suite
 
 type
     TestRef = tuple
@@ -41,7 +41,7 @@ proc getRoot(filePath : string) : XmlNode =
 proc getStatus(statusStr : string) : Status =
     result = statusSeq[find(statusStrSeq, statusStr)]
 
-proc parseTest(node : XmlNode) : Test =
+proc parseTest(node : XmlNode) : (string, Status, string) =
     let name = node.attr("name")
 
     let statusStr = node.attr("status")
@@ -49,33 +49,44 @@ proc parseTest(node : XmlNode) : Test =
 
     let locationUrl = node.attr("locationUrl")
 
-    result = Test(name: name, status: status, locationUrl: locationUrl)
+    result = (name, status, locationUrl)
 
-proc parseSuite(node : XmlNode) : Suite =
-    let name = node.attr("name")
+proc parseSuite(node : XmlNode) : seq[Test] =
+    let suiteName = node.attr("name")
 
-    let statusStr = node.attr("status")
-    let status = getStatus(statusStr)
+    let suiteStatusStr = node.attr("status")
+    let suiteStatus = getStatus(suiteStatusStr)
 
-    let locationUrl = node.attr("locationUrl")
+    let suiteLocationUrl = node.attr("locationUrl")
 
-    var testSeq = newSeq[Test]()
+    let suite = Suite(
+        name: suiteName,
+        status: suiteStatus,
+        locationUrl: suiteLocationUrl,
+    )
+
+    result = newSeq[Test]()
 
     for child in node:
         if child.tag == "test":
-            testSeq.add(parseTest(child))
+            let (testName, testStatus, testLocationUrl) = parseTest(child)
+            result.add(Test(
+                name: testName,
+                status: testStatus,
+                locationUrl: testLocationUrl,
+                suite: suite,
+            ))
 
-    result = Suite(name: name, status: status, locationUrl: locationUrl, tests: testSeq)
-
-proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Suite]) =
-    var suiteSeq = newSeq[Suite]()
+proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Test]) =
+    var testSeq = newSeq[Test]()
 
     var numTests : int
     let statusCounts = newCountTable[Status](initialSize = statusTableSize)
 
     for child in root:
         if child.tag == "suite":
-            suiteSeq.add(parseSuite(child))
+            for test in parseSuite(child):
+                testSeq.add(test)
         elif child.tag == "count":
             let countName = child.attr("name")
             let countValueStr = child.attr("value")
@@ -89,14 +100,13 @@ proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Suite]) =
 
                 statusCounts[status] = parseInt(countValueStr)
 
-    return (numTests, statusCounts, suiteSeq)
+    return (numTests, statusCounts, testSeq)
 
-proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status], suiteSeq : seq[Suite]) =
+proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status], testSeq : seq[Test]) =
     let actualStatusCounts = newCountTable[Status](initialSize = statusTableSize)
 
-    for suite in suiteSeq:
-        for test in suite.tests:
-            actualStatusCounts.inc(test.status)
+    for test in testSeq:
+        actualStatusCounts.inc(test.status)
 
     if actualStatusCounts != expectedStatusCounts:
         raise newException(ValueError, "Unexpected status counts")
@@ -109,9 +119,13 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
         raise newException(ValueError, "Unexpected total")
 
     let testRefCounts = newCountTable[TestRef](initialSize = actualNumTests.rightSize)
-    for suite in suiteSeq:
-        for test in suite.tests:
-            testRefCounts.inc((suiteName: suite.name, suiteLocationUrl: suite.locationUrl, testName: test.name, testLocationUrl: test.locationUrl))
+    for test in testSeq:
+        testRefCounts.inc((
+            suiteName: test.suite.name,
+            suiteLocationUrl: test.suite.locationUrl,
+            testName: test.name,
+            testLocationUrl: test.locationUrl,
+        ))
 
     let largestTestRefCount = testRefCounts.largest
     if largestTestRefCount[1] > 1:
@@ -140,5 +154,5 @@ except UsageError:
     quit(QuitFailure)
 
 let root = getRoot(inFilePath)
-let (numTests, statusCounts, suiteSeq) = parseRoot(root)
-validate(numTests, statusCounts, suiteSeq)
+let (numTests, statusCounts, testSeq) = parseRoot(root)
+validate(numTests, statusCounts, testSeq)
