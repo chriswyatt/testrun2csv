@@ -1,4 +1,5 @@
 import argparse
+import hashes
 import streams
 import strformat
 import tables
@@ -26,12 +27,13 @@ type
         locationUrl*: string
         suite*: Suite
 
-type
-    TestRef = tuple
-        suiteName: string
-        suiteLocationUrl: string
-        testName: string
-        testLocationUrl: string
+proc hash(x: Test): Hash =
+    var h: Hash = 0
+    h = h !& x.suite.name.hash
+    h = h !& x.suite.locationUrl.hash
+    h = h !& x.name.hash
+    h = h !& x.locationUrl.hash
+    result = !$h
 
 proc getRoot(filePath : string) : XmlNode =
     let stream = newFileStream(filePath, fmRead)
@@ -80,7 +82,7 @@ proc parseSuite(node : XmlNode) : seq[Test] =
 proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Test]) =
     var testSeq = newSeq[Test]()
 
-    var numTests : int
+    var numTests: int
     let statusCounts = newCountTable[Status](initialSize = statusTableSize)
 
     for child in root:
@@ -111,25 +113,20 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
     if actualStatusCounts != expectedStatusCounts:
         raise newException(ValueError, "Unexpected status counts")
 
-    var actualNumTests : int
+    var actualNumTests: int
     for count in values(actualStatusCounts):
         actualNumTests += count
 
     if actualNumTests != expectedNumTests:
         raise newException(ValueError, "Unexpected total")
 
-    let testRefCounts = newCountTable[TestRef](initialSize = actualNumTests.rightSize)
+    let testHashCounts = newCountTable[Hash](initialSize = actualNumTests.rightSize)
     for test in testSeq:
-        testRefCounts.inc((
-            suiteName: test.suite.name,
-            suiteLocationUrl: test.suite.locationUrl,
-            testName: test.name,
-            testLocationUrl: test.locationUrl,
-        ))
+        testHashCounts.inc(test.hash)
 
-    let largestTestRefCount = testRefCounts.largest
-    if largestTestRefCount[1] > 1:
-        raise newException(ValueError, fmt"Duplicate test: {largestTestRefCount[0]}")
+    let largestTestHashCount = testHashCounts.largest
+    if largestTestHashCount[1] > 1:
+        raise newException(ValueError, fmt"Duplicate test(s)")
 
 proc parseArgs() : string =
     let p = newParser("testrun_parse"):
@@ -146,7 +143,7 @@ proc parseArgs() : string =
         p.run(@["--help"])
         raise
 
-var inFilePath : string
+var inFilePath: string
 
 try:
     inFilePath = parseArgs()
