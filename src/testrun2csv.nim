@@ -13,8 +13,8 @@ type
     Status = enum
         error, failed, ignored, passed
 
-const statusSeq = @[error, failed, ignored, passed]
-const statusStrSeq = @["error", "failed", "ignored", "passed"]
+const statusSeq = [error, failed, ignored, passed]
+const statusStrSeq = ["error", "failed", "ignored", "passed"]
 const statusTableSize = statusSeq.len.rightSize
 
 const ordPeriod = ord('.')
@@ -26,7 +26,7 @@ const ordUnderscore = ord('_')
 const ordALower = ord('a')
 const ordZLower = ord('z')
 
-const csvHeader = @["name", "status"]
+const csvHeader = ["name", "status"]
 const csvHeaderStr = join(csvHeader, ",")
 
 type
