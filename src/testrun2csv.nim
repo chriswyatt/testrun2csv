@@ -30,7 +30,7 @@ const csvHeader = @["name", "status"]
 const csvHeaderStr = join(csvHeader, ",")
 
 type
-    CsvRow = array[2, string]
+    CsvRow = array[csvHeader.len, string]
 
 type
     Suite = object
