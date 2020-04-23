@@ -1,3 +1,4 @@
+import algorithm
 import hashes
 import sequtils
 import streams
@@ -152,6 +153,24 @@ proc getTestSeqByStatus(testSeq : seq[Test]) : Table[Status, seq[Test]] =
     for test in testSeq:
         result[test.status].add(test)
 
+proc testCmp(x, y: Test): int =
+    for (xSuite, ySuite) in zip(x.suites, y.suites):
+        if xSuite.name < ySuite.name:
+            return -1
+        elif xSuite.name > ySuite.name:
+            return 1
+
+    if x.suites.len > y.suites.len:
+        return 1
+
+    if x.name < y.name:
+        return -1
+    elif x.name > y.name:
+        return 1
+
+    return 0
+
+
 proc writeOutput(testSeq : seq[Test]) =
     let testSeqByStatus = getTestSeqByStatus(testSeq)
 
@@ -160,7 +179,7 @@ proc writeOutput(testSeq : seq[Test]) =
         echo statusStr
         echo '='.repeat(statusStr.len)
 
-        for test in testSeqByStatus[status]:
+        for test in sorted(testSeqByStatus[status], testCmp):
             let suitePath = join(map(test.suites, proc (x: Suite): string = x.name), ".")
             echo fmt"{suitePath}::{test.name}"
         
