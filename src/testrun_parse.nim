@@ -1,4 +1,3 @@
-import algorithm
 import hashes
 import sequtils
 import streams
@@ -28,14 +27,25 @@ type
         name*: string
         status*: Status
         locationUrl*: string
-        suite*: Suite
+        suites*: seq[Suite]
+
+proc hash(x: Suite): Hash =
+    var h: Hash = 0
+
+    h = h !& x.name.hash
+    h = h !& x.locationUrl.hash
+
+    result = !$h
 
 proc hash(x: Test): Hash =
     var h: Hash = 0
-    h = h !& x.suite.name.hash
-    h = h !& x.suite.locationUrl.hash
+
+    for suite in x.suites:
+        h = h !& suite.hash
+
     h = h !& x.name.hash
     h = h !& x.locationUrl.hash
+
     result = !$h
 
 proc getRoot(filePath : string) : XmlNode =
@@ -56,7 +66,7 @@ proc parseTest(node : XmlNode) : (string, Status, string) =
 
     result = (name, status, locationUrl)
 
-proc parseSuite(node : XmlNode) : seq[Test] =
+proc parseSuite(node : XmlNode, parents = newSeq[Suite]()) : seq[Test] =
     let suiteName = node.attr("name")
 
     let suiteStatusStr = node.attr("status")
@@ -79,8 +89,11 @@ proc parseSuite(node : XmlNode) : seq[Test] =
                 name: testName,
                 status: testStatus,
                 locationUrl: testLocationUrl,
-                suite: suite,
+                suites: parents & @[suite],
             ))
+        elif child.tag == "suite":
+            for test in parseSuite(child, parents=parents & @[suite]):
+                result.add(test)
 
 proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Test]) =
     var testSeq = newSeq[Test]()
@@ -114,6 +127,8 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
         actualStatusCounts.inc(test.status)
 
     if actualStatusCounts != expectedStatusCounts:
+        echo $actualStatusCounts
+        echo $expectedStatusCounts
         raise newException(ValueError, "Unexpected status counts")
 
     var actualNumTests: int
@@ -137,11 +152,6 @@ proc getTestSeqByStatus(testSeq : seq[Test]) : Table[Status, seq[Test]] =
     for test in testSeq:
         result[test.status].add(test)
 
-proc TestCmp(x, y: Test): int =
-  if (x.suite.name, x.name) < (y.suite.name, y.name): -1
-  elif (x.suite.name, x.name) == (y.suite.name, y.name): 0
-  else: 1
-
 proc writeOutput(testSeq : seq[Test]) =
     let testSeqByStatus = getTestSeqByStatus(testSeq)
 
@@ -150,8 +160,9 @@ proc writeOutput(testSeq : seq[Test]) =
         echo statusStr
         echo '='.repeat(statusStr.len)
 
-        for test in sorted(testSeqByStatus[status], TestCmp):
-            echo fmt"{test.suite.name}::{test.name}"
+        for test in testSeqByStatus[status]:
+            let suitePath = join(map(test.suites, proc (x: Suite): string = x.name), ".")
+            echo fmt"{suitePath}::{test.name}"
         
         echo ""
 
