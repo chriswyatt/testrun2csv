@@ -205,6 +205,16 @@ proc validate(
         if not isNameValid(test.name):
             raise newException(ValueError, "Test name invalid")
 
+proc parseFile(inFilePath: string): (
+        int,
+        CountTableRef[Status],
+        seq[Test],
+) =
+    let root = getRoot(inFilePath)
+    let (numTests, statusCounts, testSeq) = parseRoot(root)
+    validate(numTests, statusCounts, testSeq)
+    return (numTests, statusCounts, testSeq)
+
 proc testCmp(x, y: Test): int =
     let minSuitesLen = min(x.suites.len, y.suites.len)
 
@@ -267,7 +277,5 @@ try:
 except UsageError:
     quit(QuitFailure)
 
-let root = getRoot(inFilePath)
-let (numTests, statusCounts, testSeq) = parseRoot(root)
-validate(numTests, statusCounts, testSeq)
+let (numTests, statusCounts, testSeq) = parseFile(inFilePath)
 writeCsv(testSeq)
