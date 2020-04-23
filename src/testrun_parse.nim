@@ -154,11 +154,14 @@ proc getTestSeqByStatus(testSeq : seq[Test]) : Table[Status, seq[Test]] =
         result[test.status].add(test)
 
 proc testCmp(x, y: Test): int =
-    for (xSuite, ySuite) in zip(x.suites, y.suites):
-        if xSuite.name < ySuite.name:
-            return -1
-        elif xSuite.name > ySuite.name:
-            return 1
+    let minSuitesLen = min(x.suites.len, y.suites.len)
+
+    if minSuitesLen > 0:
+        for ix in 0 .. minSuitesLen - 1:
+            if x.suites[ix].name < y.suites[ix].name:
+                return -1
+            elif x.suites[ix].name > y.suites[ix].name:
+                return 1
 
     if x.suites.len > y.suites.len:
         return 1
