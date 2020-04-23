@@ -162,13 +162,12 @@ proc testCmp(x, y: Test): int =
 
     if x.suites.len > y.suites.len:
         return 1
-
-    if x.name < y.name:
+    elif x.name < y.name:
         return -1
     elif x.name > y.name:
         return 1
-
-    return 0
+    else:
+        return 0
 
 
 proc writeOutput(testSeq : seq[Test]) =
