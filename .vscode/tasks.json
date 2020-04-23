@@ -2,14 +2,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Run testrun_parse",
+            "label": "Run testrun2csv",
             "command": "nim",
             "args": [
                 "c",
                 "-r",
                 // "-d:release",
-                "-o:bin/testrun_parse",
-                "src/testrun_parse.nim",
+                "-o:bin/testrun2csv",
+                "src/testrun2csv.nim",
                 "/home/chris/projects/locus-casino/test_results/f2c5dbfdb73db1a02b577703dff4e8e2a29d59e1_unittest.xml"
             ],
             "options": {

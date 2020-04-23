@@ -1,6 +1,6 @@
 import algorithm
 import hashes
-import sequtils
+import seqUtils
 import streams
 import strformat
 import tables
@@ -16,6 +16,21 @@ type
 const statusSeq = @[error, failed, ignored, passed]
 const statusStrSeq = @["error", "failed", "ignored", "passed"]
 const statusTableSize = statusSeq.len.rightSize
+
+const ordPeriod = ord('.')
+const ordZero = ord('0')
+const ordNine = ord('9')
+const ordAUpper = ord('A')
+const ordZUpper = ord('Z')
+const ordUnderscore = ord('_')
+const ordALower = ord('a')
+const ordZLower = ord('z')
+
+const csvHeader = @["name", "status"]
+const csvHeaderStr = join(csvHeader, ",")
+
+type
+    CsvRow = array[2, string]
 
 type
     Suite = object
@@ -121,6 +136,21 @@ proc parseRoot(root : XmlNode) : (int, CountTableRef[Status], seq[Test]) =
 
     return (numTests, statusCounts, testSeq)
 
+proc isNameValid(name : string) : bool =
+    for chk in name:
+        let ordChk = ord(chk)
+
+        if not (
+                (ordChk >= ordALower and ordChk <= ordZLower) or
+                (ordChk >= ordZero and ordChk <= ordNine) or
+                (ordChk >= ordAUpper and ordChk <= ordZUpper) or
+                ordChk == ordUnderscore or
+                ordChk == ordPeriod):
+
+            return false
+    
+    return true
+
 proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status], testSeq : seq[Test]) =
     let actualStatusCounts = newCountTable[Status](initialSize = statusTableSize)
 
@@ -145,13 +175,15 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
 
     let largestTestHashCount = testHashCounts.largest
     if largestTestHashCount[1] > 1:
-        raise newException(ValueError, fmt"Duplicate test(s)")
-
-proc getTestSeqByStatus(testSeq : seq[Test]) : Table[Status, seq[Test]] =
-    result = toTable[Status, seq[Test]](zip(statusSeq, repeat(newSeq[Test](), statusSeq.len)))
+        raise newException(ValueError, "Duplicate test(s)")
 
     for test in testSeq:
-        result[test.status].add(test)
+        for suite in test.suites:
+            if not isNameValid(suite.name):
+                raise newException(ValueError, "Suite name invalid")
+
+        if not isNameValid(test.name):
+            raise newException(ValueError, "Test name invalid")
 
 proc testCmp(x, y: Test): int =
     let minSuitesLen = min(x.suites.len, y.suites.len)
@@ -172,24 +204,27 @@ proc testCmp(x, y: Test): int =
     else:
         return 0
 
+proc writeCsv(testSeq : seq[Test]) =
+    echo csvHeaderStr
 
-proc writeOutput(testSeq : seq[Test]) =
-    let testSeqByStatus = getTestSeqByStatus(testSeq)
+    var row : CsvRow
 
-    for ix, status in statusSeq:
-        let statusStr = statusStrSeq[ix]
-        echo statusStr
-        echo '='.repeat(statusStr.len)
+    for test in sorted(testSeq, testCmp):
+        let suitePath = join(map(
+            test.suites,
+            proc (x: Suite): string = x.name),
+            ".",
+        )
+        let fullName = fmt"{suitePath}::{test.name}"
 
-        for test in sorted(testSeqByStatus[status], testCmp):
-            let suitePath = join(map(test.suites, proc (x: Suite): string = x.name), ".")
-            echo fmt"{suitePath}::{test.name}"
-        
-        echo ""
+        row[0] = fullName
+        row[1] = $test.status
+
+        echo join(row, ",")
 
 proc parseArgs() : string =
-    let p = newParser("testrun_parse"):
-        help("Parse IntelliJ testrun XML files")
+    let p = newParser("testrun2csv"):
+        help("Convert IntelliJ testrun XML file to a CSV file")
         arg(
             "in_file",
             help = "Input file",
@@ -212,4 +247,4 @@ except UsageError:
 let root = getRoot(inFilePath)
 let (numTests, statusCounts, testSeq) = parseRoot(root)
 validate(numTests, statusCounts, testSeq)
-writeOutput(testSeq)
+writeCsv(testSeq)
