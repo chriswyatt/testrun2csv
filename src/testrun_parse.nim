@@ -1,10 +1,13 @@
-import argparse
+import algorithm
 import hashes
+import sequtils
 import streams
 import strformat
 import tables
 import xmlparser
 import xmltree
+
+import argparse
 
 type
     Status = enum
@@ -128,6 +131,31 @@ proc validate(expectedNumTests: int, expectedStatusCounts : CountTableRef[Status
     if largestTestHashCount[1] > 1:
         raise newException(ValueError, fmt"Duplicate test(s)")
 
+proc getTestSeqByStatus(testSeq : seq[Test]) : Table[Status, seq[Test]] =
+    result = toTable[Status, seq[Test]](zip(statusSeq, repeat(newSeq[Test](), statusSeq.len)))
+
+    for test in testSeq:
+        result[test.status].add(test)
+
+proc TestCmp(x, y: Test): int =
+  if (x.suite.name, x.name) < (y.suite.name, y.name): -1
+  elif (x.suite.name, x.name) == (y.suite.name, y.name): 0
+  else: 1
+
+proc writeOutput(testSeq : seq[Test]) =
+    let testSeqByStatus = getTestSeqByStatus(testSeq)
+
+    for ix, status in statusSeq:
+        let statusStr = statusStrSeq[ix]
+        echo statusStr
+        echo '='.repeat(statusStr.len)
+
+        for test in sorted(testSeqByStatus[status], TestCmp):
+            echo fmt"{test.suite.name}::{test.name}"
+        
+        echo ""
+
+
 proc parseArgs() : string =
     let p = newParser("testrun_parse"):
         help("Parse IntelliJ testrun XML files")
@@ -153,3 +181,4 @@ except UsageError:
 let root = getRoot(inFilePath)
 let (numTests, statusCounts, testSeq) = parseRoot(root)
 validate(numTests, statusCounts, testSeq)
+writeOutput(testSeq)
