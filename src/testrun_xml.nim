@@ -5,13 +5,7 @@ import tables
 import xmlparser
 import xmltree
 
-type
-    Status* = enum
-        error, failed, ignored, passed
-
-const statusSeq* = [error, failed, ignored, passed]
-const statusStrSeq* = ["error", "failed", "ignored", "passed"]
-const statusTableSize = statusSeq.len.rightSize
+import testrun_shared
 
 const ordPeriod = ord('.')
 const ordZero = ord('0')
@@ -21,38 +15,6 @@ const ordZUpper = ord('Z')
 const ordUnderscore = ord('_')
 const ordALower = ord('a')
 const ordZLower = ord('z')
-
-type
-    Suite* = object
-        name*: string
-        status*: Status
-        locationUrl*: string
-
-type
-    Test* = object
-        name*: string
-        status*: Status
-        locationUrl*: string
-        suites*: seq[Suite]
-
-proc hash(x: Suite): Hash =
-    var h: Hash = 0
-
-    h = h !& x.name.hash
-    h = h !& x.locationUrl.hash
-
-    result = !$h
-
-proc hash(x: Test): Hash =
-    var h: Hash = 0
-
-    for suite in x.suites:
-        h = h !& suite.hash
-
-    h = h !& x.name.hash
-    h = h !& x.locationUrl.hash
-
-    result = !$h
 
 proc getRoot(filePath: string): XmlNode =
     let stream = newFileStream(filePath, fmRead)
