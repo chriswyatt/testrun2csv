@@ -6,7 +6,7 @@ import strutils
 
 import argparse
 
-import parse_testrun
+import testrun_xml
 
 const csvHeader = ["name", "status"]
 const csvHeaderStr = join(csvHeader, ",")
