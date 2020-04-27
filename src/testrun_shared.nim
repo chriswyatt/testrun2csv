@@ -10,13 +10,13 @@ const statusStrSeq* = ["error", "failed", "ignored", "passed"]
 const statusTableSize* = statusSeq.len.rightSize
 
 type
-    Suite* = ref object
+    Suite* = ref object of RootObj
         name*: string
         status*: Status
         locationUrl*: string
 
 type
-    Test* = ref object
+    Test* = ref object of RootObj
         name*: string
         status*: Status
         locationUrl*: string
